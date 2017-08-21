@@ -12,6 +12,7 @@ from my_planning_graph import PlanningGraph
 from functools import lru_cache
 
 
+
 class AirCargoProblem(Problem):
     def __init__(self, cargos, planes, airports, initial: FluentState, goal: list):
         """
@@ -334,3 +335,19 @@ def air_cargo_p3() -> AirCargoProblem:
             expr('At(C4, SFO)'),
             ]
     return AirCargoProblem(cargos, planes, airports, init, goal)
+
+
+if __name__ == '__main__':
+    problems = [air_cargo_p1(),air_cargo_p2(),air_cargo_p3()]
+    for problem in problems:
+        print("**** Have Cake example problem setup ****")
+        print("Initial state for this problem is {}".format(problem.initial))
+        print("Actions for this domain are:")
+        for a in problem.actions_list:
+            print('   {}{}'.format(a.name, a.args))
+        print("Fluents in this problem are:")
+        for f in problem.state_map:
+            print('   {}'.format(f))
+        print("Goal requirement for this problem are:")
+        for g in problem.goal:
+            print('   {}'.format(g))
