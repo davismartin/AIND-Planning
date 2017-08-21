@@ -16,7 +16,6 @@ from functools import lru_cache
 class AirCargoProblem(Problem):
     def __init__(self, cargos, planes, airports, initial: FluentState, goal: list):
         """
-
         :param cargos: list of str
             cargos in the problem
         :param planes: list of str
@@ -42,7 +41,6 @@ class AirCargoProblem(Problem):
         domain action schema and turns them into complete Action objects as defined in the
         aimacode.planning module. It is computationally expensive to call this method directly;
         however, it is called in the constructor and the results cached in the `actions_list` property.
-
         Returns:
         ----------
         list<Action>
@@ -50,9 +48,9 @@ class AirCargoProblem(Problem):
         """
         def load_actions():
             """Create all concrete Load actions and return a list
-
             :return: list of Action objects
             """
+            # copy logic from fly_actions
             loads = []
             for airport in self.airports:
                 for plane in self.planes:
@@ -72,6 +70,7 @@ class AirCargoProblem(Problem):
             """Create all concrete Unload actions and return a list
             :return: list of Action objects
             """
+            # copy logic from fly_actions
             unloads = []
             for airport in self.airports:
                 for plane in self.planes:
@@ -116,6 +115,7 @@ class AirCargoProblem(Problem):
             e.g. 'FTTTFF'
         :return: list of Action objects
         """
+        # Logic mainly copied from cake example
         possible_actions = []
         kb = PropKB()
         kb.tell(decode_state(state, self.state_map).pos_sentence())
@@ -135,11 +135,11 @@ class AirCargoProblem(Problem):
         """ Return the state that results from executing the given
         action in the given state. The action must be one of
         self.actions(state).
-
         :param state: state entering node
         :param action: Action applied
         :return: resulting state after action
         """
+        # Logic mainly copied from cake example
         new_state = FluentState([], [])
         old_state = decode_state(state, self.state_map)
         for fluent in old_state.pos:
@@ -192,7 +192,8 @@ class AirCargoProblem(Problem):
         conditions by ignoring the preconditions required for an action to be
         executed.
         """
-        # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
+        # Drop all preconditions from actions basically the number of checks required to
+        # solve the problem is the number of unsatisfied goals.
         kb = PropKB()
         kb.tell(decode_state(node.state, self.state_map).pos_sentence())
 
@@ -336,11 +337,12 @@ def air_cargo_p3() -> AirCargoProblem:
             ]
     return AirCargoProblem(cargos, planes, airports, init, goal)
 
-
+# Again copied mainly from have cake example delete run_search references as
+# the created a circular dependency
 if __name__ == '__main__':
     problems = [air_cargo_p1(),air_cargo_p2(),air_cargo_p3()]
     for problem in problems:
-        print("**** Have Cake example problem setup ****")
+        print("**** {} setup ****".format(problem))
         print("Initial state for this problem is {}".format(problem.initial))
         print("Actions for this domain are:")
         for a in problem.actions_list:

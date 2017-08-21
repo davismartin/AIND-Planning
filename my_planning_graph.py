@@ -6,7 +6,6 @@ from lp_utils import decode_state
 
 class PgNode():
     """Base class for planning graph nodes.
-
     includes instance sets common to both types of nodes used in a planning graph
     parents: the set of nodes in the previous level
     children: the set of nodes in the subsequent level
@@ -20,7 +19,6 @@ class PgNode():
 
     def is_mutex(self, other) -> bool:
         """Boolean test for mutual exclusion
-
         :param other: PgNode
             the other node to compare with
         :return: bool
@@ -32,7 +30,6 @@ class PgNode():
 
     def show(self):
         """helper print for debugging shows counts of parents, children, siblings
-
         :return:
             print only
         """
@@ -44,7 +41,6 @@ class PgNode():
 class PgNode_s(PgNode):
     """A planning graph node representing a state (literal fluent) from a
     planning problem.
-
     Args:
     ----------
     symbol : str
@@ -58,7 +54,6 @@ class PgNode_s(PgNode):
 
     def __init__(self, symbol: str, is_pos: bool):
         """S-level Planning Graph node constructor
-
         :param symbol: expr
         :param is_pos: bool
         Instance variables calculated:
@@ -77,7 +72,6 @@ class PgNode_s(PgNode):
     def show(self):
         """helper print for debugging shows literal plus counts of parents,
         children, siblings
-
         :return:
             print only
         """
@@ -89,7 +83,6 @@ class PgNode_s(PgNode):
 
     def __eq__(self, other):
         """equality test for nodes - compares only the literal for equality
-
         :param other: PgNode_s
         :return: bool
         """
@@ -104,11 +97,8 @@ class PgNode_s(PgNode):
 
 class PgNode_a(PgNode):
     """A-type (action) Planning Graph node - inherited from PgNode """
-
-
     def __init__(self, action: Action):
         """A-level Planning Graph node constructor
-
         :param action: Action
             a ground action, i.e. this action cannot contain any variables
         Instance variables calculated:
@@ -132,7 +122,6 @@ class PgNode_a(PgNode):
 
     def show(self):
         """helper print for debugging shows action plus counts of parents, children, siblings
-
         :return:
             print only
         """
@@ -143,7 +132,6 @@ class PgNode_a(PgNode):
         """precondition literals as S-nodes (represents possible parents for this node).
         It is computationally expensive to call this function; it is only called by the
         class constructor to populate the `prenodes` attribute.
-
         :return: set of PgNode_s
         """
         nodes = set()
@@ -157,7 +145,6 @@ class PgNode_a(PgNode):
         """effect literals as S-nodes (represents possible children for this node).
         It is computationally expensive to call this function; it is only called by the
         class constructor to populate the `effnodes` attribute.
-
         :return: set of PgNode_s
         """
         nodes = set()
@@ -169,7 +156,6 @@ class PgNode_a(PgNode):
 
     def __eq__(self, other):
         """equality test for nodes - compares only the action name for equality
-
         :param other: PgNode_a
         :return: bool
         """
@@ -185,7 +171,6 @@ class PgNode_a(PgNode):
 
 def mutexify(node1: PgNode, node2: PgNode):
     """ adds sibling nodes to each other's mutual exclusion (mutex) set. These should be sibling nodes!
-
     :param node1: PgNode (or inherited PgNode_a, PgNode_s types)
     :param node2: PgNode (or inherited PgNode_a, PgNode_s types)
     :return:
@@ -200,9 +185,8 @@ def mutexify(node1: PgNode, node2: PgNode):
 class PlanningGraph():
     """
     A planning graph as described in chapter 10 of the AIMA text. The planning
-    graph can be used to reason about 
+    graph can be used to reason about
     """
-
     def __init__(self, problem: Problem, state: str, serial_planning=True):
         """
         :param problem: PlanningProblem (or subclass such as AirCargoProblem or HaveCakeProblem)
@@ -303,13 +287,21 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         """
-        # TODO add action A level to the planning graph as described in the Russell-Norvig text
-        # 1. determine what actions to add and create those PgNode_a objects
-        # 2. connect the nodes to the previous S literal level
-        # for example, the A0 level will iterate through all possible actions for the problem and add a PgNode_a to a_levels[0]
-        #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
-        #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
-        #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
+        a_nodes = []
+        for action in self.all_actions:
+            # Create Action node object for this action
+            node_a = PgNode_a(action)
+            # Verify it is an appropriate s_level set
+            if node_a.prenodes.issubset(self.s_levels[level]):
+                # Add reachable action node to the list of action nodes
+                a_nodes.append(node_a)
+                for node_s in self.s_levels[level]:
+                    # Make child node of previous levels state node since alt S->A->S
+                    node_s.children.add(node_a)
+                    # Make the previous level state node parent to this action node since S->A->S
+                    node_a.parents.add(node_s)
+        # Build level
+        self.a_levels.append(a_nodes)
 
     def add_literal_level(self, level):
         """ add an S (literal) level to the Planning Graph
@@ -320,14 +312,20 @@ class PlanningGraph():
         :return:
             adds S nodes to the current level in self.s_levels[level]
         """
-        # TODO add literal S level to the planning graph as described in the Russell-Norvig text
-        # 1. determine what literals to add
-        # 2. connect the nodes
-        # for example, every A node in the previous level has a list of S nodes in effnodes that represent the effect
-        #   produced by the action.  These literals will all be part of the new S level.  Since we are working with sets, they
-        #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
-        #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
-        #   parent sets of the S nodes
+        # Basically the same as above accept for state nodes
+        s_nodes = set()
+        # Verify it is an appropriate a_level set
+        for node_a in self.a_levels[level-1]:
+            for node_s in node_a.effnodes:
+                # Add reachable state node to the list of state nodes
+                s_nodes.add(node_s)
+                # Make child node of previous levels action node since alt S->A->S
+                node_s.parents.add(node_a)
+                # Make the previous level action node parent to this state node since S->A->S
+                node_a.children.add(node_s)
+        # Build level
+        self.s_levels.append(s_nodes)
+
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
@@ -364,7 +362,6 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        #
         if not self.serial:
             return False
         if node_a1.is_persistent or node_a2.is_persistent:
@@ -375,34 +372,53 @@ class PlanningGraph():
         """
         Test a pair of actions for inconsistent effects, returning True if
         one action negates an effect of the other, and False otherwise.
-
-        HINT: The Action instance associated with an action node is accessible
-        through the PgNode_a.action attribute. See the Action class
-        documentation for details on accessing the effects and preconditions of
-        an action.
-
         :param node_a1: PgNode_a
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Inconsistent Effects between nodes
+        # From the text inconsistent_effects_mutex: one action negates an effect on the other:
+        # Make sure node_a1's (+) effects aren't canceled by node_a2's (-) effects
+        for effect in node_a1.action.effect_add:
+            if effect in node_a2.action.effect_rem:
+                return True
+
+        # Make sure node_a2's (+) effects aren't canceled by node_a1's (-) effects
+        for effect in node_a2.action.effect_add:
+            if effect in node_a1.action.effect_rem:
+                return True
+
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
-        Test a pair of actions for mutual exclusion, returning True if the 
+        Test a pair of actions for mutual exclusion, returning True if the
         effect of one action is the negation of a precondition of the other.
-
-        HINT: The Action instance associated with an action node is accessible
-        through the PgNode_a.action attribute. See the Action class
-        documentation for details on accessing the effects and preconditions of
-        an action.
-
         :param node_a1: PgNode_a
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Interference between nodes
+        # From the text interference_mutex: One of the effects of one action
+        # is the negation of a precondition of the other
+
+        # Add precondition
+        # Make sure node_a1's (+) effects don't conflict with node_a2's (-) preconditions
+        # Make sure node_a2's (+) effects don't conflict with node_a1's (-) preconditions
+        for effect in node_a1.action.effect_add:
+            if effect in node_a2.action.precond_neg:
+                return True
+        for effect in node_a2.action.effect_add:
+            if effect in node_a1.action.precond_neg:
+                return True
+        # Remove precondition
+        # Make sure node_a1's (-) effects don't conflict with node_a2's (+) preconditions
+        # Make sure node_a2's (-) effects don't conflict with node_a1's (+) preconditions
+        for effect in node_a1.action.effect_rem:
+            if effect in node_a2.action.precond_pos:
+                return True
+        for effect in node_a2.action.effect_rem:
+            if effect in node_a1.action.precond_pos:
+                return True
+
         return False
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -415,8 +431,15 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        # competing_needs_mutex: One of the preconditions of one action is mutually exclusive
+        # with a precondition of the other.
 
-        # TODO test for Competing Needs between nodes
+        # Make sure node_a1's preconditions aren't mutually exclusive with node_a2's preconditions
+        for precond_a1 in node_a1.parents:
+            for precond_a2 in node_a2.parents:
+                if precond_a1.is_mutex(precond_a2):
+                    return True
+
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -451,8 +474,10 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for negation between nodes
-        return False
+        # From text a mutex relation holds between two literals (symbols) at the same
+        # level if one is the negation of the other
+        # check to make sure one does not negate the other
+        return node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
         """
@@ -463,22 +488,34 @@ class PlanningGraph():
         are pairwise mutually exclusive with all of the actions that could
         achieve the second literal node.
 
-        HINT: The PgNode.is_mutex method can be used to test whether two nodes
-        are mutually exclusive.
-
         :param node_s1: PgNode_s
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for Inconsistent Support between nodes
-        return False
+        # from text: if each possible pair of actions
+        # that could achieve the two literals is mutually exclusive.
+        for precond_s1 in node_s1.parents:
+            for precond_s2 in node_s2.parents:
+                if not precond_s1.is_mutex(precond_s2):
+                    return False
+
+        return True
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
-
         :return: int
         """
         level_sum = 0
-        # TODO implement
-        # for each goal in the problem, determine the level cost, then add them together
+        goals = self.problem.goal
+        s_levels = self.s_levels
+        # iterate through goals
+        for goal in goals:
+            # Find what node goal is in
+            node = PgNode_s(goal, True)
+            # iterate through levels
+            for level, s_nodes in enumerate(s_levels):
+                if node in s_nodes:
+                    # sum for heuristic
+                    level_sum += level
+                    break
         return level_sum
